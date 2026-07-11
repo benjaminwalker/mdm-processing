@@ -42,3 +42,6 @@ class InMemoryMasteryRepository:
             if attribute is not None and attribute.value == value:
                 matches.append(record.master_key)
         return matches
+
+    def find_live_masters_by_entity_type(self, entity_type: str) -> list[MasterRecordRow]:
+        return [r for r in self._master_records.values() if r.superseded_by is None and r.entity_type == entity_type]

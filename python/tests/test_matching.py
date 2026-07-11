@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from mdm_processing.config.models import AttributeDef, AttributeType, EntityConfig, SourceChannelConfig
-from mdm_processing.core.matching import AmbiguousMatchError, CrossChannelOutcome, match_deterministic
+from mdm_processing.config.models import AttributeDef, AttributeType, CandidateKeys, EntityConfig, SourceChannelConfig
+from mdm_processing.core.matching import AmbiguousMatchError, CrossChannelOutcome, match_deterministic, match_probabilistic
 from mdm_processing.core.records import IncomingRecord
 from mdm_processing.core.types import SourceReferenceKey
 from mdm_processing.storage.in_memory import InMemoryMasteryRepository
@@ -87,5 +87,83 @@ def test_conflicting_natural_keys_raise_ambiguous_match():
     conflicting = _incoming("3", {"ssn": "111-11-1111", "email": "b@example.com"})
     with pytest.raises(AmbiguousMatchError) as exc_info:
         match_deterministic(repo, ENTITY_CONFIG, CHANNEL, conflicting, NOW)
+
+    assert set(exc_info.value.master_keys) == {master_a.master_key, master_b.master_key}
+
+
+PROBABILISTIC_ENTITY_CONFIG = EntityConfig(
+    entity_type="customer",
+    description="test",
+    natural_keys=["ssn"],
+    candidate_keys=CandidateKeys(match_strategy="fraction_match", threshold=0.8, attributes=["name", "date_of_birth"]),
+    attributes=[
+        AttributeDef(name="ssn", type=AttributeType.STRING),
+        AttributeDef(name="name", type=AttributeType.STRING),
+        AttributeDef(name="date_of_birth", type=AttributeType.STRING),
+    ],
+)
+
+
+def _fraction_match_scorer(incoming: dict, candidate: dict) -> float:
+    if not incoming:
+        return 0.0
+    matches = sum(1 for k, v in incoming.items() if candidate.get(k) == v)
+    return matches / len(incoming)
+
+
+def test_probabilistic_match_requires_candidate_keys_configured():
+    repo = InMemoryMasteryRepository()
+    incoming = _incoming("1", {"name": "Alice"})
+
+    with pytest.raises(ValueError, match="no candidate_keys configured"):
+        match_probabilistic(repo, ENTITY_CONFIG, CHANNEL, incoming, NOW, _fraction_match_scorer)
+
+
+def test_probabilistic_match_above_threshold_matches_highest_scorer():
+    repo = InMemoryMasteryRepository()
+    full_match = match_deterministic(
+        repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL,
+        _incoming("1", {"ssn": "111-11-1111", "name": "Alice Smith", "date_of_birth": "1990-01-01"}), NOW,
+    )
+    match_deterministic(
+        repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL,
+        _incoming("2", {"ssn": "222-22-2222", "name": "Alice Smith", "date_of_birth": "1985-05-05"}), NOW,
+    )
+
+    incoming = _incoming("3", {"name": "Alice Smith", "date_of_birth": "1990-01-01"})
+    result = match_probabilistic(repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL, incoming, NOW, _fraction_match_scorer)
+
+    assert result.outcome == CrossChannelOutcome.MASTER_MATCHED_PROBABILISTIC
+    assert result.master_key == full_match.master_key
+
+
+def test_probabilistic_match_below_threshold_creates_new_master():
+    repo = InMemoryMasteryRepository()
+    match_deterministic(
+        repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL,
+        _incoming("1", {"ssn": "111-11-1111", "name": "Someone Else", "date_of_birth": "1970-01-01"}), NOW,
+    )
+
+    incoming = _incoming("2", {"name": "Alice Smith", "date_of_birth": "1990-01-01"})
+    result = match_probabilistic(repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL, incoming, NOW, _fraction_match_scorer)
+
+    assert result.outcome == CrossChannelOutcome.MASTER_CREATED
+    assert result.master_key is not None
+
+
+def test_probabilistic_match_tied_top_scores_above_threshold_raise_ambiguous():
+    repo = InMemoryMasteryRepository()
+    master_a = match_deterministic(
+        repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL,
+        _incoming("1", {"ssn": "111-11-1111", "name": "Alice Smith", "date_of_birth": "1990-01-01"}), NOW,
+    )
+    master_b = match_deterministic(
+        repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL,
+        _incoming("2", {"ssn": "222-22-2222", "name": "Alice Smith", "date_of_birth": "1990-01-01"}), NOW,
+    )
+
+    incoming = _incoming("3", {"name": "Alice Smith", "date_of_birth": "1990-01-01"})
+    with pytest.raises(AmbiguousMatchError) as exc_info:
+        match_probabilistic(repo, PROBABILISTIC_ENTITY_CONFIG, CHANNEL, incoming, NOW, _fraction_match_scorer)
 
     assert set(exc_info.value.master_keys) == {master_a.master_key, master_b.master_key}
