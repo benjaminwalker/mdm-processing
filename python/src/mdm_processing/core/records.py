@@ -7,6 +7,16 @@ from mdm_processing.core.types import SourceReferenceKey
 
 
 @dataclass(frozen=True)
+class IncomingRecord:
+    entity_type: str
+    source_reference_key: SourceReferenceKey
+    attributes: dict[str, Any]
+    change_timestamp: datetime | None
+    audit_author: str
+    audit_batch_id: str | None = None
+
+
+@dataclass(frozen=True)
 class SourceRecord:
     source_reference_key: SourceReferenceKey
     entity_type: str
