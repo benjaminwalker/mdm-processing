@@ -33,13 +33,7 @@ class AmbiguousMatchError(Exception):
         super().__init__(f"match for entity_type={entity_type!r} found conflicting master records: {sorted(master_keys)}")
 
 
-def match_deterministic(
-    repo: MasteryRepository,
-    entity_config: EntityConfig,
-    channel: SourceChannelConfig,
-    incoming: IncomingRecord,
-    now: datetime,
-) -> MatchResult:
+def find_deterministic_match(repo: MasteryRepository, entity_config: EntityConfig, incoming: IncomingRecord) -> str | None:
     matched_master_keys: set[str] = set()
     for natural_key in entity_config.natural_keys:
         value = incoming.attributes.get(natural_key)
@@ -50,23 +44,12 @@ def match_deterministic(
     if len(matched_master_keys) > 1:
         raise AmbiguousMatchError(incoming.entity_type, sorted(matched_master_keys))
 
-    if matched_master_keys:
-        master_key = next(iter(matched_master_keys))
-        repo.link_crosswalk(incoming.source_reference_key, master_key)
-        return MatchResult(outcome=CrossChannelOutcome.MASTER_MATCHED_DETERMINISTIC, master_key=master_key)
-
-    master_key = _create_master_from_incoming(repo, entity_config, channel, incoming, now)
-    return MatchResult(outcome=CrossChannelOutcome.MASTER_CREATED, master_key=master_key)
+    return next(iter(matched_master_keys), None)
 
 
-def match_probabilistic(
-    repo: MasteryRepository,
-    entity_config: EntityConfig,
-    channel: SourceChannelConfig,
-    incoming: IncomingRecord,
-    now: datetime,
-    scorer: MatchScorer,
-) -> MatchResult:
+def find_probabilistic_match(
+    repo: MasteryRepository, entity_config: EntityConfig, incoming: IncomingRecord, scorer: MatchScorer
+) -> str | None:
     if entity_config.candidate_keys is None:
         raise ValueError(f"entity_type={entity_config.entity_type!r} has no candidate_keys configured")
 
@@ -86,12 +69,34 @@ def match_probabilistic(
         elif score == best_score:
             best_master_keys.append(master.master_key)
 
-    if best_master_keys and best_score >= entity_config.candidate_keys.threshold:
-        if len(best_master_keys) > 1:
-            raise AmbiguousMatchError(incoming.entity_type, sorted(best_master_keys))
-        master_key = best_master_keys[0]
+    if not best_master_keys or best_score < entity_config.candidate_keys.threshold:
+        return None
+
+    if len(best_master_keys) > 1:
+        raise AmbiguousMatchError(incoming.entity_type, sorted(best_master_keys))
+
+    return best_master_keys[0]
+
+
+def match_entity(
+    repo: MasteryRepository,
+    entity_config: EntityConfig,
+    channel: SourceChannelConfig,
+    incoming: IncomingRecord,
+    now: datetime,
+    scorer: MatchScorer | None = None,
+) -> MatchResult:
+    # Deterministic first; probabilistic fallback only if candidate_keys + a scorer are both present; otherwise mint a new master.
+    master_key = find_deterministic_match(repo, entity_config, incoming)
+    if master_key is not None:
         repo.link_crosswalk(incoming.source_reference_key, master_key)
-        return MatchResult(outcome=CrossChannelOutcome.MASTER_MATCHED_PROBABILISTIC, master_key=master_key)
+        return MatchResult(outcome=CrossChannelOutcome.MASTER_MATCHED_DETERMINISTIC, master_key=master_key)
+
+    if entity_config.candidate_keys is not None and scorer is not None:
+        master_key = find_probabilistic_match(repo, entity_config, incoming, scorer)
+        if master_key is not None:
+            repo.link_crosswalk(incoming.source_reference_key, master_key)
+            return MatchResult(outcome=CrossChannelOutcome.MASTER_MATCHED_PROBABILISTIC, master_key=master_key)
 
     master_key = _create_master_from_incoming(repo, entity_config, channel, incoming, now)
     return MatchResult(outcome=CrossChannelOutcome.MASTER_CREATED, master_key=master_key)
