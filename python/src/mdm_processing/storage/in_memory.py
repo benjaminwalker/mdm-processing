@@ -1,3 +1,5 @@
+from typing import Any
+
 from mdm_processing.core.records import MasterRecordRow, SourceRecord
 from mdm_processing.core.types import SourceReferenceKey
 
@@ -30,3 +32,13 @@ class InMemoryMasteryRepository:
 
     def save_master_record(self, record: MasterRecordRow) -> None:
         self._master_records[record.master_key] = record
+
+    def find_master_by_natural_key(self, entity_type: str, attribute_name: str, value: Any) -> list[str]:
+        matches = []
+        for record in self._master_records.values():
+            if record.superseded_by is not None or record.entity_type != entity_type:
+                continue
+            attribute = record.attributes.get(attribute_name)
+            if attribute is not None and attribute.value == value:
+                matches.append(record.master_key)
+        return matches

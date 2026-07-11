@@ -107,3 +107,25 @@ def test_master_record_round_trip_including_superseded_by():
     repo.save_master_record(record)
 
     assert repo.get_master_record("M-1") == record
+
+
+def test_find_master_by_natural_key_matches_live_records_only():
+    repo = InMemoryMasteryRepository()
+    live = MasterRecordRow(
+        master_key="M-live",
+        entity_type="customer",
+        attributes={"ssn": ResolvedAttribute(name="ssn", value="123-45-6789", observed_at=datetime(2026, 1, 1, tzinfo=timezone.utc), winning_source=_ref())},
+    )
+    superseded = MasterRecordRow(
+        master_key="M-superseded",
+        entity_type="customer",
+        attributes={"ssn": ResolvedAttribute(name="ssn", value="999-99-9999", observed_at=datetime(2026, 1, 1, tzinfo=timezone.utc), winning_source=_ref())},
+        superseded_by="M-live",
+    )
+    repo.save_master_record(live)
+    repo.save_master_record(superseded)
+
+    assert repo.find_master_by_natural_key("customer", "ssn", "123-45-6789") == ["M-live"]
+    assert repo.find_master_by_natural_key("customer", "ssn", "999-99-9999") == []
+    assert repo.find_master_by_natural_key("customer", "ssn", "no-match") == []
+    assert repo.find_master_by_natural_key("property", "ssn", "123-45-6789") == []

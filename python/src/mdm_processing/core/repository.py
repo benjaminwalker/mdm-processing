@@ -1,4 +1,4 @@
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from mdm_processing.core.records import MasterRecordRow, SourceRecord
 from mdm_processing.core.types import SourceReferenceKey
@@ -6,7 +6,8 @@ from mdm_processing.core.types import SourceReferenceKey
 
 @runtime_checkable
 class MasteryRepository(Protocol):
-    # Scoped to reprocessing + crosswalk + master CRUD; matching-candidate lookups are deferred until the matcher is built.
+    # Scoped to reprocessing + crosswalk + master CRUD, plus deterministic natural-key lookup;
+    # probabilistic candidate-lookup methods are still deferred until that matcher is built.
 
     def get_source_record(self, key: SourceReferenceKey) -> SourceRecord | None: ...
 
@@ -21,3 +22,5 @@ class MasteryRepository(Protocol):
     def get_master_record(self, master_key: str) -> MasterRecordRow | None: ...
 
     def save_master_record(self, record: MasterRecordRow) -> None: ...
+
+    def find_master_by_natural_key(self, entity_type: str, attribute_name: str, value: Any) -> list[str]: ...
