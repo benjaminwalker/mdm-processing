@@ -1,0 +1,28 @@
+name: no_shared_natural_key_creates_separate_masters
+description: Two records with no overlapping natural key value create two independent masters.
+
+entity: customer
+now: "2026-01-01T00:00:00Z"
+
+steps:
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_created
+
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "2"
+      attributes:
+        ssn: "999-99-9999"
+        name: Bob
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_created

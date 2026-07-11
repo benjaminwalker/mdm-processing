@@ -29,11 +29,12 @@ def test_loads_example_entities():
 def test_loads_example_source_channels():
     channels = load_source_channels(CONFIG_DIR / "source_channels")
 
-    assert set(channels) == {"crm_salesforce", "legacy_import"}
+    assert set(channels) == {"crm_salesforce", "legacy_import", "web_signup"}
     assert channels["crm_salesforce"].precedence == 1
     assert channels["crm_salesforce"].dedup_required is True
     assert channels["legacy_import"].dedup_required is False
     assert channels["legacy_import"].dedup_strategy is None
+    assert channels["web_signup"].dedup_required is False
 
 
 def test_natural_key_must_reference_known_attribute(tmp_path):

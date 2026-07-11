@@ -1,0 +1,38 @@
+name: two_channels_share_natural_key
+description: Two different source channels submitting the same natural key value resolve to one master. The matched (second) submission does not modify the master's existing attributes - attribute merging into an already-matched master is not yet implemented.
+
+entity: customer
+now: "2026-01-01T00:00:00Z"
+
+steps:
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice Smith
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_created
+
+  - submit:
+      channel: web_signup
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice Smith Web Signup Name
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_matched_deterministic
+      same_master_as_step: 0
+
+final_master:
+  attributes:
+    name:
+      value: Alice Smith
+      winning_source:
+        source_channel_cd: legacy_import
+        source_key_name: id
+        source_key_value: "1"

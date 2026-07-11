@@ -14,9 +14,9 @@ This repository is early-stage: the domain spec and architecture are written, bu
 This repo is structured for eventual multi-language ports, not just the current Python implementation:
 
 ```
-docs/            shared, language-agnostic API contract + config format docs
+docs/            shared, language-agnostic API contract + config + fixture format docs
 config/          shared entity/source-channel definitions (YAML) - see docs/config_format.md
-fixtures/        shared conformance test data (input records + config -> expected master record output)
+fixtures/        shared conformance test data (see docs/fixture_format.md) - run via python/tests/test_fixtures.py
 python/          the Python implementation - pyproject.toml, src/, tests/, .venv all live here
 ```
 

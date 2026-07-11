@@ -1,0 +1,27 @@
+name: new_record_creates_master
+description: The first submission for a source reference key creates a new master record.
+
+entity: customer
+now: "2026-01-01T00:00:00Z"
+
+steps:
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        email: a@example.com
+        name: Alice Smith
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_created
+
+final_master:
+  attributes:
+    name:
+      value: Alice Smith
+      winning_source:
+        source_channel_cd: legacy_import
+        source_key_name: id
+        source_key_value: "1"

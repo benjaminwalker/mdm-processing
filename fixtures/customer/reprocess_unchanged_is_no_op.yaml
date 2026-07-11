@@ -1,0 +1,29 @@
+name: reprocess_unchanged_is_no_op
+description: Resubmitting identical data for the same source reference key is a no-op and skips cross-channel matching entirely.
+
+entity: customer
+now: "2026-01-01T00:00:00Z"
+
+steps:
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice Smith
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_created
+
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice Smith
+    expect:
+      within_channel_outcome: no_op
+      cross_channel_outcome: null
+      same_master_as_step: 0

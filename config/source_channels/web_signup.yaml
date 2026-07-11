@@ -1,0 +1,6 @@
+channel_code: web_signup
+description: Direct-to-consumer web signup form, self-reported data.
+precedence: 10
+
+dedup_required: false
+dedup_strategy: null

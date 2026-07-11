@@ -1,0 +1,29 @@
+name: update_rematches_same_master
+description: Resubmitting changed data for the same source reference key creates a new version and rematches to the same master via its unchanged natural key.
+
+entity: customer
+now: "2026-01-01T00:00:00Z"
+
+steps:
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice
+    expect:
+      within_channel_outcome: new_record
+      cross_channel_outcome: master_created
+
+  - submit:
+      channel: legacy_import
+      source_key_name: id
+      source_key_value: "1"
+      attributes:
+        ssn: "123-45-6789"
+        name: Alice Smith
+    expect:
+      within_channel_outcome: new_version
+      cross_channel_outcome: master_matched_deterministic
+      same_master_as_step: 0
