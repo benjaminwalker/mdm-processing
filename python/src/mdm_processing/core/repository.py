@@ -1,0 +1,23 @@
+from typing import Protocol, runtime_checkable
+
+from mdm_processing.core.records import MasterRecordRow, SourceRecord
+from mdm_processing.core.types import SourceReferenceKey
+
+
+@runtime_checkable
+class MasteryRepository(Protocol):
+    # Scoped to reprocessing + crosswalk + master CRUD; matching-candidate lookups are deferred until the matcher is built.
+
+    def get_source_record(self, key: SourceReferenceKey) -> SourceRecord | None: ...
+
+    def save_source_record(self, record: SourceRecord) -> None: ...
+
+    def get_master_key_for_source(self, key: SourceReferenceKey) -> str | None: ...
+
+    def link_crosswalk(self, key: SourceReferenceKey, master_key: str) -> None: ...
+
+    def repoint_crosswalk(self, old_master_key: str, new_master_key: str) -> None: ...
+
+    def get_master_record(self, master_key: str) -> MasterRecordRow | None: ...
+
+    def save_master_record(self, record: MasterRecordRow) -> None: ...
