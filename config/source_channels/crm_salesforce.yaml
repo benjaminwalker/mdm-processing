@@ -1,0 +1,6 @@
+channel_code: crm_salesforce
+description: Primary CRM system of record for customer contacts.
+precedence: 1
+
+dedup_required: true
+dedup_strategy: crm_dedup_v1

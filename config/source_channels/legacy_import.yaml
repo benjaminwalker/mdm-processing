@@ -1,0 +1,6 @@
+channel_code: legacy_import
+description: One-time CSV import of legacy customer records, superseded by crm_salesforce for ongoing updates.
+precedence: 20
+
+dedup_required: false
+dedup_strategy: null

@@ -1,0 +1,30 @@
+entity_type: customer
+description: A person who purchases goods or services from the business.
+
+natural_keys:
+  - ssn
+  - email
+  - phone
+
+candidate_keys:
+  match_strategy: probabilistic_v1
+  threshold: 0.85
+  attributes:
+    - name
+    - date_of_birth
+    - address
+
+attributes:
+  - name: ssn
+    type: string
+  - name: email
+    type: string
+  - name: phone
+    type: string
+  - name: name
+    type: string
+  - name: date_of_birth
+    type: date
+  - name: address
+    type: string
+    ttl: P90D
