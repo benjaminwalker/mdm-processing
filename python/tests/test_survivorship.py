@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 from mdm_processing.config.models import AttributeDef, AttributeType
-from mdm_processing.core.survivorship import AttributeCandidate, resolve_survivorship
+from mdm_processing.core.survivorship import AttributeCandidate, resolve_survivorship, resolve_within_channel
 from mdm_processing.core.types import SourceReferenceKey
 
 
@@ -70,3 +70,19 @@ def test_no_candidates_raises():
 
     with pytest.raises(ValueError, match="no candidates"):
         resolve_survivorship(attribute_def, [])
+
+
+def test_resolve_within_channel_picks_most_recent():
+    candidates = [
+        AttributeCandidate(value="older", source_reference_key=_ref("crm"), channel_precedence=1, observed_at=_at(1)),
+        AttributeCandidate(value="newer", source_reference_key=_ref("crm"), channel_precedence=1, observed_at=_at(5)),
+    ]
+
+    winner = resolve_within_channel(candidates)
+
+    assert winner.value == "newer"
+
+
+def test_resolve_within_channel_no_candidates_raises():
+    with pytest.raises(ValueError, match="no candidates"):
+        resolve_within_channel([])

@@ -80,6 +80,30 @@ def test_recompute_applies_precedence_across_contributors():
     assert result.attributes["name"].value == "CRM Name"
 
 
+def test_recompute_resolves_most_recent_within_channel_before_applying_cross_channel_precedence():
+    repo = InMemoryMasteryRepository()
+    created = submit_record(repo, ENTITY_CONFIG, LOW_PRECEDENCE_CHANNEL, _incoming("legacy", "1", {"ssn": "123-45-6789", "name": "Legacy Old"}), NOW)
+    submit_record(repo, ENTITY_CONFIG, LOW_PRECEDENCE_CHANNEL, _incoming("legacy", "2", {"ssn": "123-45-6789", "name": "Legacy New"}), LATER)
+    submit_record(repo, ENTITY_CONFIG, HIGH_PRECEDENCE_CHANNEL, _incoming("crm", "3", {"ssn": "123-45-6789", "name": "CRM Name"}), NOW)
+
+    result = recompute_master_attributes(repo, ENTITY_CONFIG, CHANNELS, created.master_key, LATER, "recompute-job")
+
+    # highest-precedence channel wins overall, even though a lower-precedence channel has more recent data
+    assert result.attributes["name"].value == "CRM Name"
+    assert result.attributes["name"].winning_source.source_channel_cd == "crm"
+
+
+def test_recompute_most_recent_wins_among_multiple_same_channel_contributors():
+    repo = InMemoryMasteryRepository()
+    created = submit_record(repo, ENTITY_CONFIG, LOW_PRECEDENCE_CHANNEL, _incoming("legacy", "1", {"ssn": "123-45-6789", "name": "Legacy Old"}), NOW)
+    submit_record(repo, ENTITY_CONFIG, LOW_PRECEDENCE_CHANNEL, _incoming("legacy", "2", {"ssn": "123-45-6789", "name": "Legacy New"}), LATER)
+
+    result = recompute_master_attributes(repo, ENTITY_CONFIG, CHANNELS, created.master_key, LATER, "recompute-job")
+
+    assert result.attributes["name"].value == "Legacy New"
+    assert result.attributes["name"].winning_source.source_key_value == "2"
+
+
 def test_recompute_omits_attribute_with_no_contributors():
     repo = InMemoryMasteryRepository()
     created = submit_record(repo, ENTITY_CONFIG, LOW_PRECEDENCE_CHANNEL, _incoming("legacy", "1", {"ssn": "123-45-6789"}), NOW)

@@ -22,6 +22,13 @@ class ResolvedAttribute:
     winning_source: SourceReferenceKey
 
 
+def resolve_within_channel(candidates: list[AttributeCandidate]) -> AttributeCandidate:
+    # All candidates here share one channel, so precedence is moot - recency is the only signal to reconcile on.
+    if not candidates:
+        raise ValueError("no candidates provided")
+    return max(candidates, key=lambda c: c.observed_at)
+
+
 def resolve_survivorship(attribute_def: AttributeDef, candidates: list[AttributeCandidate]) -> ResolvedAttribute:
     # TTL configured -> recency wins outright over precedence; otherwise precedence wins. Either way, ties break on the other criterion.
     if not candidates:

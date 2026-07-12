@@ -1,9 +1,10 @@
+from collections import defaultdict
 from datetime import datetime
 
 from mdm_processing.config.models import EntityConfig, SourceChannelConfig
 from mdm_processing.core.records import MasterRecordRow
 from mdm_processing.core.repository import MasteryRepository
-from mdm_processing.core.survivorship import AttributeCandidate, resolve_survivorship
+from mdm_processing.core.survivorship import AttributeCandidate, resolve_survivorship, resolve_within_channel
 
 
 def recompute_master_attributes(
@@ -25,19 +26,25 @@ def recompute_master_attributes(
 
     attributes = {}
     for attribute_def in entity_config.attributes:
-        candidates = [
-            AttributeCandidate(
-                value=source_record.attributes[attribute_def.name],
-                source_reference_key=source_record.source_reference_key,
-                channel_precedence=channels[source_record.source_reference_key.source_channel_cd].precedence,
-                observed_at=source_record.change_timestamp or source_record.audit_timestamp,
+        candidates_by_channel: dict[str, list[AttributeCandidate]] = defaultdict(list)
+        for source_record in source_records:
+            if attribute_def.name not in source_record.attributes:
+                continue
+            channel_cd = source_record.source_reference_key.source_channel_cd
+            candidates_by_channel[channel_cd].append(
+                AttributeCandidate(
+                    value=source_record.attributes[attribute_def.name],
+                    source_reference_key=source_record.source_reference_key,
+                    channel_precedence=channels[channel_cd].precedence,
+                    observed_at=source_record.change_timestamp or source_record.audit_timestamp,
+                )
             )
-            for source_record in source_records
-            if attribute_def.name in source_record.attributes
-        ]
-        if not candidates:
+
+        if not candidates_by_channel:
             continue
-        attributes[attribute_def.name] = resolve_survivorship(attribute_def, candidates)
+
+        channel_representatives = [resolve_within_channel(candidates) for candidates in candidates_by_channel.values()]
+        attributes[attribute_def.name] = resolve_survivorship(attribute_def, channel_representatives)
 
     updated = MasterRecordRow(
         master_key=master_key,
