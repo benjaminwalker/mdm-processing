@@ -45,3 +45,6 @@ class InMemoryMasteryRepository:
 
     def find_live_masters_by_entity_type(self, entity_type: str) -> list[MasterRecordRow]:
         return [r for r in self._master_records.values() if r.superseded_by is None and r.entity_type == entity_type]
+
+    def find_source_keys_for_master(self, master_key: str) -> list[SourceReferenceKey]:
+        return [key for key, linked_master_key in self._crosswalk.items() if linked_master_key == master_key]
