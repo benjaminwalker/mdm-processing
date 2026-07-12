@@ -20,6 +20,9 @@ def _master(master_key: str, superseded_by: str | None = None) -> MasterRecordRo
         master_key=master_key,
         entity_type="customer",
         attributes={"name": ResolvedAttribute(name="name", value="Alice", observed_at=NOW, winning_source=_ref())},
+        created_at=NOW,
+        metadata_audit_timestamp=NOW,
+        metadata_audit_author="ingest-job",
         superseded_by=superseded_by,
     )
 

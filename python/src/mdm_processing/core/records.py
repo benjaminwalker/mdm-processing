@@ -33,4 +33,8 @@ class MasterRecordRow:
     master_key: str
     entity_type: str
     attributes: dict[str, ResolvedAttribute]
+    created_at: datetime
+    metadata_audit_timestamp: datetime
+    metadata_audit_author: str
+    metadata_audit_batch_id: str | None = None
     superseded_by: str | None = None

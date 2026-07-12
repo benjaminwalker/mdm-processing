@@ -123,6 +123,16 @@ def _create_master_from_incoming(
         )
         attributes[attribute_def.name] = resolve_survivorship(attribute_def, [candidate])
 
-    repo.save_master_record(MasterRecordRow(master_key=master_key, entity_type=incoming.entity_type, attributes=attributes))
+    repo.save_master_record(
+        MasterRecordRow(
+            master_key=master_key,
+            entity_type=incoming.entity_type,
+            attributes=attributes,
+            created_at=now,
+            metadata_audit_timestamp=now,
+            metadata_audit_author=incoming.audit_author,
+            metadata_audit_batch_id=incoming.audit_batch_id,
+        )
+    )
     repo.link_crosswalk(incoming.source_reference_key, master_key)
     return master_key

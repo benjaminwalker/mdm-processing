@@ -7,6 +7,9 @@ from mdm_processing.core.types import SourceReferenceKey
 from mdm_processing.storage.in_memory import InMemoryMasteryRepository
 
 
+NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
 def _ref(value: str = "1") -> SourceReferenceKey:
     return SourceReferenceKey(source_channel_cd="crm", source_key_name="id", source_key_value=value)
 
@@ -102,6 +105,9 @@ def test_master_record_round_trip_including_superseded_by():
         master_key="M-1",
         entity_type="customer",
         attributes={"email": resolved},
+        created_at=NOW,
+        metadata_audit_timestamp=NOW,
+        metadata_audit_author="ingest-job",
         superseded_by="M-survivor",
     )
     repo.save_master_record(record)
@@ -114,12 +120,18 @@ def test_find_master_by_natural_key_matches_live_records_only():
     live = MasterRecordRow(
         master_key="M-live",
         entity_type="customer",
-        attributes={"ssn": ResolvedAttribute(name="ssn", value="123-45-6789", observed_at=datetime(2026, 1, 1, tzinfo=timezone.utc), winning_source=_ref())},
+        attributes={"ssn": ResolvedAttribute(name="ssn", value="123-45-6789", observed_at=NOW, winning_source=_ref())},
+        created_at=NOW,
+        metadata_audit_timestamp=NOW,
+        metadata_audit_author="ingest-job",
     )
     superseded = MasterRecordRow(
         master_key="M-superseded",
         entity_type="customer",
-        attributes={"ssn": ResolvedAttribute(name="ssn", value="999-99-9999", observed_at=datetime(2026, 1, 1, tzinfo=timezone.utc), winning_source=_ref())},
+        attributes={"ssn": ResolvedAttribute(name="ssn", value="999-99-9999", observed_at=NOW, winning_source=_ref())},
+        created_at=NOW,
+        metadata_audit_timestamp=NOW,
+        metadata_audit_author="ingest-job",
         superseded_by="M-live",
     )
     repo.save_master_record(live)
